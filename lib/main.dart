@@ -14,6 +14,18 @@ class _MacRecorderPageState extends State<MacRecorderPage> {
   bool _isRecording = false;
   String? _filePath;
 
+  String generateTimestampedFilename({String extension = "wav"}) {
+    final now = DateTime.now();
+    final formatted = "${now.year}"
+        "${now.month.toString().padLeft(2, '0')}"
+        "${now.day.toString().padLeft(2, '0')}_"
+        "${now.hour.toString().padLeft(2, '0')}"
+        "${now.minute.toString().padLeft(2, '0')}"
+        "${now.second.toString().padLeft(2, '0')}";
+
+    return "$formatted.$extension";
+  }
+
   Future<void> _startRecording() async {
     if (await _recorder.hasPermission()) {
       String tempDir;
@@ -30,8 +42,8 @@ class _MacRecorderPageState extends State<MacRecorderPage> {
         tempDir = (await getApplicationDocumentsDirectory()).path;
       }
 
-      // 파일 이름은 날짜_시간 형식
-      _filePath = '$tempDir/${DateTime.now().toIso8601String()}.wav';
+      // 파일 이름은 년월일_시분초 형식
+      _filePath = '$tempDir/${generateTimestampedFilename()}';
 
       await _recorder.start(const RecordConfig(), path: _filePath!);
 
