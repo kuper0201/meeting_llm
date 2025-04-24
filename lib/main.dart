@@ -16,9 +16,22 @@ class _MacRecorderPageState extends State<MacRecorderPage> {
 
   Future<void> _startRecording() async {
     if (await _recorder.hasPermission()) {
-      final tempDir = await getTemporaryDirectory();
-      print(tempDir);
-      _filePath = '${tempDir.path}/mac_record.wav';
+      String tempDir;
+
+      if (Platform.isAndroid) {
+        // Android: /storage/emulated/0/Documents/YourApp
+        final directory = Directory('/storage/emulated/0/Documents/MeetingRecorder');
+        if (!await directory.exists()) {
+          await directory.create(recursive: true);
+        }
+        tempDir = directory.path;
+      } else {
+        // macOS: 내부 문서 디렉토리
+        tempDir = (await getApplicationDocumentsDirectory()).path;
+      }
+
+      // 파일 이름은 날짜_시간 형식
+      _filePath = '$tempDir/${DateTime.now().toIso8601String()}.wav';
 
       await _recorder.start(const RecordConfig(), path: _filePath!);
 
