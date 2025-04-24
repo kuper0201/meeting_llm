@@ -1,95 +1,83 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_sound/flutter_sound.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 
-void main() {
-  runApp(MaterialApp(home: VoiceRecorder()));
+class MacRecorderPage extends StatefulWidget {
+  @override
+  _MacRecorderPageState createState() => _MacRecorderPageState();
 }
 
-class VoiceRecorder extends StatefulWidget {
-  @override
-  _VoiceRecorderState createState() => _VoiceRecorderState();
-}
+class _MacRecorderPageState extends State<MacRecorderPage> {
+  final _recorder = AudioRecorder();
+  bool _isRecording = false;
+  String? _filePath;
 
-class _VoiceRecorderState extends State<VoiceRecorder> {
-  final recorder = FlutterSoundRecorder();
-  bool isRecording = false;
-  String? audioPath;
+  Future<void> _startRecording() async {
+    if (await _recorder.hasPermission()) {
+      final tempDir = await getTemporaryDirectory();
+      print(tempDir);
+      _filePath = '${tempDir.path}/mac_record.wav';
 
-  @override
-  void initState() {
-    super.initState();
-    initRecorder();
-  }
+      await _recorder.start(const RecordConfig(), path: _filePath!);
 
-  Future<void> initRecorder() async {
-    await Permission.microphone.request();
-    await recorder.openRecorder();
-  }
-
-  Future<void> startRecording() async {
-    // final dir = await getApplicationDocumentsDirectory();
-    final filePath = '/home/kuper0201/voice.aac';
-    final perm = await Permission.microphone.request();
-    print(perm);
-    await recorder.openRecorder();
-    await recorder.startRecorder(toFile: filePath, codec: Codec.aacADTS);
-    setState(() {
-      isRecording = true;
-      audioPath = filePath;
-    });
-  }
-
-  Future<void> stopRecording() async {
-    await recorder.stopRecorder();
-    setState(() {
-      isRecording = false;
-    });
-  }
-
-  Future<void> uploadRecording() async {
-    if (audioPath == null) return;
-    var uri = Uri.parse('http://<your-fastapi-url>/upload-audio');
-    var request = http.MultipartRequest('POST', uri)
-      ..files.add(await http.MultipartFile.fromPath('file', audioPath!));
-
-    var response = await request.send();
-    if (response.statusCode == 200) {
-      print('Upload success');
+      setState(() {
+        _isRecording = true;
+      });
     } else {
-      print('Upload failed: ${response.statusCode}');
+      print("Permission denied.");
     }
   }
 
-  @override
-  void dispose() {
-    recorder.closeRecorder();
-    super.dispose();
+  Future<void> _stopRecording() async {
+    await _recorder.stop();
+    setState(() {
+      _isRecording = false;
+    });
+  }
+
+  Future<void> _uploadRecording() async {
+    if (_filePath == null || !File(_filePath!).existsSync()) return;
+
+    var uri = Uri.parse('http://<YOUR_FASTAPI_SERVER>:8000/upload-audio/');
+    var request = http.MultipartRequest('POST', uri);
+    request.files.add(await http.MultipartFile.fromPath('file', _filePath!));
+
+    var response = await request.send();
+    if (response.statusCode == 200) {
+      print("Upload successful!");
+    } else {
+      print("Upload failed: ${response.statusCode}");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('음성 녹음기')),
+      appBar: AppBar(title: Text("macOS Audio Recorder")),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton(
-              onPressed: isRecording ? stopRecording : startRecording,
-              child: Text(isRecording ? '녹음 중지' : '녹음 시작'),
+              onPressed: _isRecording ? _stopRecording : _startRecording,
+              child: Text(_isRecording ? "Stop Recording" : "Start Recording"),
             ),
             SizedBox(height: 20),
             ElevatedButton(
-              onPressed: uploadRecording,
-              child: Text('서버로 업로드'),
+              onPressed: _uploadRecording,
+              child: Text("Upload Recording"),
             ),
           ],
         ),
       ),
     );
   }
+}
+
+void main() {
+  runApp(MaterialApp(
+    home: MacRecorderPage(),
+  ));
 }

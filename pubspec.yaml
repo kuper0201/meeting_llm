@@ -30,7 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_sound:
+  # flutter_sound:
+  record:
   permission_handler:
   path_provider:
   http:
