@@ -41,12 +41,14 @@ class RecorderPage extends StatelessWidget {
                         ),
                         child: Align(
                           alignment: Alignment.centerLeft,
-                          child: Obx(() => AnimatedContainer(
-                                duration: const Duration(milliseconds: 100),
-                                width: (controller.amplitude.value + 160) / 160 * MediaQuery.of(context).size.width,
-                                height: 20,
-                                color: Colors.blueAccent,
-                              )),
+                          child: Obx(() {
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 100),
+                              width: (controller.amplitude.value + 160) / 160 * MediaQuery.of(context).size.width,
+                              height: 20,
+                              color: Colors.blueAccent,
+                            );
+                          }),
                         ),
                       ),
                       const SizedBox(height: 20),

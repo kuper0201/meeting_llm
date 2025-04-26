@@ -1,6 +1,7 @@
 import 'dart:developer';
 import 'dart:io';
 import 'package:get/get.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
@@ -46,7 +47,27 @@ class RecorderController extends GetxController {
   }
 
   Future<void> startRecording() async {
-    if (await recorder.hasPermission()) {
+    try {
+      bool hasPermission = await recorder.hasPermission();
+
+      if (!hasPermission) {
+        // 추가: permission_handler로 요청
+        var micStatus = await Permission.microphone.request();
+
+        if (micStatus != PermissionStatus.granted) {
+          uploadStatus.value = "❌ 마이크 권한이 거부되었습니다.";
+          Get.snackbar(
+            "권한 필요",
+            "녹음을 위해 마이크 권한이 필요합니다.",
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+          );
+          log("Microphone permission denied after request.", time: DateTime.now());
+          return;
+        }
+      }
+
       String tempDir;
 
       if (Platform.isAndroid) {
@@ -65,21 +86,35 @@ class RecorderController extends GetxController {
         tempDir = (await getApplicationDocumentsDirectory()).path;
       }
 
-      log("Save Dir: $tempDir", time: DateTime.now());
-
       filePath.value = '$tempDir/${generateTimestampedFilename()}';
 
-      await recorder.start(const RecordConfig(), path: filePath.value!);
+      final config = RecordConfig(
+        encoder: AudioEncoder.wav,
+        sampleRate: 16000,
+        numChannels: 1,
+        bitRate: 128000,
+      );
+
+      await recorder.start(config, path: filePath.value!);
+
+      final isActuallyRecording = await recorder.isRecording();
+      if (!isActuallyRecording) {
+        uploadStatus.value = "❌ 녹음 시작 실패";
+        log("Recording failed to start.", time: DateTime.now());
+        return;
+      }
 
       isRecording.value = true;
       uploadStatus.value = "";
 
-      // 🆕 실시간 amplitude 감지 시작
       recorder.onAmplitudeChanged(const Duration(milliseconds: 100)).listen((amp) {
-        amplitude.value = amp.current.toDouble(); // -160 ~ 0 dB
+        amplitude.value = amp.current.toDouble();
       });
-    } else {
-      print("Permission denied.");
+
+      log("Recording started.", time: DateTime.now());
+    } catch (e) {
+      log("Error during recording start: $e", time: DateTime.now());
+      uploadStatus.value = "❌ 녹음 시작 오류: $e";
     }
   }
 
