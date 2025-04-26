@@ -35,6 +35,9 @@ dependencies:
   permission_handler:
   path_provider:
   http:
+  get:
+  shared_preferences:
+  workmanager:
 
 
   # The following adds the Cupertino Icons font to your application.
