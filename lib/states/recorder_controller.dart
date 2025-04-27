@@ -130,7 +130,41 @@ class RecorderController extends GetxController {
   }
 
   Future<void> uploadRecording(String path) async {
-    // (업로드 로직 생략: 앞서 작성한 것과 동일)
+    try {
+      final serverUrl = urlTextController.text.trim();
+      if (serverUrl.isEmpty) {
+        uploadStatus.value = "❗ 서버 URL이 비어있습니다.";
+        return;
+      }
+
+      final file = File(path);
+      if (!await file.exists()) {
+        uploadStatus.value = "❗ 업로드할 파일이 존재하지 않습니다.";
+        return;
+      }
+
+      uploadStatus.value = "📤 업로드 중...";
+
+      final uri = Uri.parse('http://$serverUrl');
+      final request = http.MultipartRequest('POST', uri);
+
+      request.files.add(
+        await http.MultipartFile.fromPath('file', file.path),
+      );
+
+      final response = await request.send();
+
+      if (response.statusCode == 200) {
+        uploadStatus.value = "✅ 업로드 성공!";
+        log("File uploaded successfully: ${file.path}", time: DateTime.now());
+      } else {
+        uploadStatus.value = "❌ 업로드 실패 (코드: ${response.statusCode})";
+        log("File upload failed with status: ${response.statusCode}", time: DateTime.now());
+      }
+    } catch (e) {
+      uploadStatus.value = "❌ 업로드 중 오류 발생: $e";
+      log("Error during file upload: $e", time: DateTime.now());
+    }
   }
 
   @override
