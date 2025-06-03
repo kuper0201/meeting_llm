@@ -48,9 +48,22 @@ class RecorderPage extends StatelessWidget {
                   case 'open_storage':
                     controller.openStorageFolder();
                     break;
+                  case 'import_file':
+                    controller.importExternalAudioFile();
+                    break;
                 }
               },
               itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'import_file',
+                  child: Row(
+                    children: [
+                      Icon(Icons.file_upload),
+                      SizedBox(width: 8),
+                      Text('외부 파일 가져오기'),
+                    ],
+                  ),
+                ),
                 const PopupMenuItem(
                   value: 'upload_all',
                   child: Row(
@@ -273,7 +286,7 @@ class RecorderPage extends StatelessWidget {
     });
   }
 
-  // 서버 목록 탭
+  // 서버 목록 탭 (사용하지 않는 메서드이지만 기존 코드와의 호환성을 위해 유지)
   Widget _buildServerTab(RecorderController controller) {
     return Column(
       children: [
@@ -410,47 +423,87 @@ class RecorderPage extends StatelessWidget {
   }
   // 로컬 파일 탭
   Widget _buildLocalFilesTab(RecorderController controller) {
-    return Obx(() {
-      if (controller.isLoadingLocalFiles.value) {
-        return const Center(child: CircularProgressIndicator());
-      }
-
-      if (controller.localRecordings.isEmpty) {
-        return const Center(
+    return Column(
+      children: [
+        // 파일 가져오기 버튼 섹션
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.folder_open, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
-              Text(
-                '저장된 녹음 파일이 없습니다',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+              // 외부 파일 가져오기 버튼
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => controller.importExternalAudioFile(),
+                  icon: const Icon(Icons.file_upload),
+                  label: const Text('외부 음성 파일 가져오기'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
-                '녹음을 시작해보세요',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                '지원 형식: MP3, WAV, M4A, AAC',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
               ),
             ],
           ),
-        );
-      }
+        ),
+        
+        // 파일 목록
+        Expanded(
+          child: Obx(() {
+            if (controller.isLoadingLocalFiles.value) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-      return ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: controller.localRecordings.length,
-        itemBuilder: (context, index) {
-          final recording = controller.localRecordings[index];
-          return _buildLocalFileCard(controller, recording, index);
-        },
-      );
-    });
+            if (controller.localRecordings.isEmpty) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.folder_open, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      '저장된 녹음 파일이 없습니다',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      '녹음을 시작하거나 외부 파일을 가져와보세요',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: controller.localRecordings.length,
+              itemBuilder: (context, index) {
+                final recording = controller.localRecordings[index];
+                return _buildLocalFileCard(controller, recording, index);
+              },
+            );
+          }),
+        ),
+      ],
+    );
   }
 
   Widget _buildLocalFileCard(RecorderController controller, Map<String, dynamic> recording, int index) {
     final fileName = recording['fileName'] ?? 'Unknown';
     final isCurrentlyUploading = controller.currentUploadingFile.value == fileName;
     final isCurrentlyPlaying = controller.currentPlayingFile == fileName;
+    final isImported = recording['isImported'] == true;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -463,13 +516,36 @@ class RecorderPage extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    fileName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        fileName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (isImported) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green[100],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '가져온 파일',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.green[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 Icon(
@@ -656,7 +732,6 @@ class RecorderPage extends StatelessWidget {
   }
 
   Widget _buildTranscriptionCard(RecorderController controller, Map<String, dynamic> transcription) {
-    print(transcription);
     final id = transcription['id'];
     final filename = transcription['filename'] ?? 'Unknown';
     final content = transcription['summary'] ?? '';

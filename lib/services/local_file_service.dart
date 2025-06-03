@@ -52,9 +52,11 @@ class LocalFileService {
       final jsonString = prefs.getString(_localRecordingsKey) ?? '[]';
       final List<dynamic> decoded = json.decode(jsonString);
       
+      print(decoded);
       // 실제 파일 존재 여부 확인
       List<Map<String, dynamic>> validRecordings = [];
       for (var item in decoded) {
+        print(item.runtimeType);
         final file = File(item['filePath']);
         if (await file.exists()) {
           validRecordings.add(Map<String, dynamic>.from(item));
@@ -64,7 +66,7 @@ class LocalFileService {
       print('📁 로컬 녹음 파일 ${validRecordings.length}개 로드됨');
       return validRecordings;
     } catch (e) {
-      print('❌ 로컬 녹음 파일 로드 실패: $e');
+      print('❌ 로컬 녹음 파일 로드 실패: $e'); 
       return [];
     }
   }
@@ -83,13 +85,16 @@ class LocalFileService {
         'timestamp': timestamp,
         'uploaded': false,
         'uploadAttempts': 0,
+        'platform': Platform.operatingSystem,
+        'storageType': Platform.isMacOS ? 'macOS 사용자 Documents 폴더' : 'App Documents 폴더',
+        'userVisible': true,
       };
     } catch (e) {
       print('❌ 녹음 정보 생성 실패: $e');
       rethrow;
     }
-  }
 
+  }
   Future<void> deleteLocalFile(String filePath) async {
     try {
       final file = File(filePath);
